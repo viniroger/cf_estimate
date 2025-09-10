@@ -1,10 +1,10 @@
 # Script para estimar valor de CF para todas as imagens de um diretório
 
-from helpers.aux import Aux
-from helpers.img_func import Img_func
+from helpers.cf_estimate import Aux
+from helpers.cf_estimate import Img_func
 
-filetype = 'tsi' # opções: tsi, sonda
-pc_name = 'rocinante' # opções: matrix, rocinante, desktop-pedro
+filetype = 'sonda' # opções: tsi, sonda
+pc_name = 'matrix' # opções: matrix, rocinante, desktop-pedro
 path_in, path_out = Aux.pc_paths(pc_name)
 
 # Loop para todos os diretórios - cada um é um dia de dados
