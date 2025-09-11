@@ -30,7 +30,21 @@ A segmentação resultante classifica os pixels da imagem em três categorias di
 
 *Figura 2. Fluxograma da fração de cobertura de nuvens estimada usando imagens obtidas pelo All Sky Image (ASI).*
 
-Referências
+## EM DESENVOLVIMENTO
+
+O histograma da imagem (nesse caso em tons de cinza) representa a distribuição de intensidades de pixels. Ao normalizar (probabilidades), vira uma distribuição de probabilidade. A entropia mede o grau de desordem/variedade dessa distribuição:
+
+- Entropia baixa: a maioria dos pixels tem valores parecidos (imagem homogênea → céu limpo ou todo nublado).
+- Entropia alta: os pixels estão espalhados por várias intensidades (imagem heterogênea → mistura de nuvens e céu).
+
+Para o cálculo de HTW (Histogram Tail Width), deve-se acumular as probabilidades (cumsum). Depois, o script acha em que intensidade o histograma acumula 25% e 75% da área. O HTW = x₇₅ – x₂₅ é a largura da parte “central” do histograma.
+
+- HTW pequeno: histograma concentrado → imagem homogênea.
+- HTW grande: histograma espalhado → imagem heterogênea.
+
+Deve-se encontrar um limiar fixo de Entropia e de HTW da imagem para defenir imagens que sejam homogêneas ou heterogêneas.
+
+## Referências
 
 C.H. Li, C.K. Lee, Minimum cross entropy thresholding, Pattern Recognition, Volume 26, Issue 4, 1993, Pages 617-625, ISSN 0031-3203, https://doi.org/10.1016/0031-3203(93)90115-D.
 

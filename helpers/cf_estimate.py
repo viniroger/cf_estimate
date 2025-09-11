@@ -14,7 +14,7 @@ from glob import glob
 from datetime import datetime, time
 import numpy as np
 import pandas as pd
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 #import matplotlib.dates as mdates
 import cv2
 from skimage.filters import threshold_li
@@ -28,8 +28,10 @@ class Aux():
         '''
         if pc_name == 'matrix':
             # Notebook Vinicius
-            path_in = '/data1/tsiskyimage/'
-            path_out = '/home/vinicius/Documentos/doutorado/out/'
+            #path_in = '/data1/tsiskyimage/'
+            path_in = '/home/vinicius/Documentos/INPE_outros/Unifei_furnas/asi_16068/'
+            #path_out = '/home/vinicius/Documentos/doutorado/out/'
+            path_out = '/home/vinicius/Documentos/INPE_outros/out'
         elif pc_name == 'rocinante':
             # Workstation INPE
             path_in = '/media/data/tsiskyimage/'
@@ -55,6 +57,13 @@ class Aux():
         '''
         files = sorted([f for f in glob(path + "/*." + ext, recursive=True)])
         return files
+
+    @staticmethod
+    def filter_filelist(lista_arquivos, padrao):
+        '''
+        Filtrar lista de arquivos/strings conforme padrão
+        '''
+        return [arquivo for arquivo in lista_arquivos if arquivo.endswith(padrao)]
 
     @staticmethod
     def create_df(col_names):
@@ -372,11 +381,11 @@ class Img_func():
         Definir critério de homogeneidade
         e parâmetros para MCE adaptativo
         '''
-        #if entropia > 6.3 and htw > 42:
-        #    criterio_homogeneidade = 'heterogeneo'
-        #else:
-        #    criterio_homogeneidade = 'homogeneo'
-        criterio_homogeneidade = 'heterogeneo' # FORÇANDO HETEROGENEIDADE
+        if entropia > 6.3 and htw > 42:
+            criterio_homogeneidade = 'heterogeneo'
+        else:
+            criterio_homogeneidade = 'homogeneo'
+        criterio_homogeneidade = 'homogeneo' # FORÇANDO
         if criterio_homogeneidade == 'heterogeneo':
             block_size = 651  # Tamanho do bloco
             constant = 10.0   # Constante de ajuste
@@ -425,3 +434,106 @@ class Img_func():
         cf_asi = int(round(cloud_percentage,0))
         return n_gray, n_white, n_black, cf_asi
 
+    @staticmethod
+    def plot_hist_RGB(img, mask, date_str, date_ts, color, path_out):
+        '''
+        Plot histogram from a RGB image
+        '''
+        # Separar cores
+        blue_channel = img[:, :, 0]
+        green_channel = img[:, :, 1]
+        red_channel = img[:, :, 2]
+        # Aplicar máscara para deixar preto os pontos que não interessam
+        blue_channel = cv2.bitwise_and(blue_channel, blue_channel, mask=mask)
+        green_channel = cv2.bitwise_and(green_channel, green_channel, mask=mask)
+        red_channel = cv2.bitwise_and(red_channel, red_channel, mask=mask)
+        # Remover pontos pretos, pois não fazem parte do céu/nuvem
+        blue_channel_without_zero = blue_channel[blue_channel != 0]
+        green_channel_without_zero = green_channel[green_channel != 0]
+        red_channel_without_zero = red_channel[red_channel != 0]
+        imgs_channels = [blue_channel_without_zero, 
+                        green_channel_without_zero, 
+                        red_channel_without_zero]
+        # Escolher canal para calcular índices: G=1, R=2
+        if color == 'green':
+            img_channel = green_channel
+            img_without_zero = green_channel_without_zero
+        elif color == 'red':
+            img_channel = red_channel
+            img_without_zero = red_channel_without_zero
+
+        # CÁLCULO DE ENTROPIA
+        # Calcule o histograma
+        histograma = cv2.calcHist([img_without_zero], [0], None, [256], [0, 256])
+        # Normalize o histograma
+        probabilidades = histograma / np.sum(histograma)
+        # Calcule a entropia
+        entropia = -np.sum(probabilidades * np.log2(probabilidades + np.finfo(float).eps))
+
+        # CÁLCULO DE HTW
+        # Encontre os pontos onde a área acumulada atinge 25% e 75% da área total
+        cumsum = np.cumsum(probabilidades)
+        x_25 = np.argwhere(cumsum >= 0.25)[0][0]
+        x_75 = np.argwhere(cumsum >= 0.75)[0][0]
+        # Calcule a HTW
+        htw = abs(x_75 - x_25)
+
+        # Fazer gráfico
+        fig, ax = plt.subplots(1, 2, figsize=(12, 6))
+        ax[0].imshow(img_channel, cmap='gray')
+        ax[0].set_title(f'Imagem canal {color} com máscara - {date_ts} UTC')
+        ax[0].set_axis_off()
+        # Define colors to plot the histograms
+        colors = ('b','g','r')
+        for i,color in enumerate(colors):
+            # Compute and plot histograms
+            hist = cv2.calcHist([imgs_channels[i]],[0],None,[256],[0,256])
+            ax[1].plot(hist,color = color)
+        ax[1].set_title(f'Histograma - Entropia:{entropia:.2f} HTW:{htw}')
+        # Crie um segundo eixo y à direita
+        #ax2 = ax[1].twinx()
+        # Plote a PDF no segundo eixo y
+        #ax2.plot(x, pdf, label='PDF', color='r')
+        # Configuração do segundo eixo y
+        #ax2.set_ylim(0, max(pdf))  # Define o intervalo do eixo y à direita como 0 a 1
+        #ax2.set_ylabel('PDF', color='r')  # Rótulo do eixo y à direita
+        #ax2.tick_params(axis='y', labelcolor='r')  # Cor dos números do eixo y à direita
+        fig.tight_layout()
+        plt.savefig(f'{path_out}/{date_str}_hist.png', bbox_inches='tight')
+        plt.close(fig)
+        return entropia, htw
+
+    @staticmethod
+    def plot3(img1, img2, mask, date_str, n_gray, cf_asi, circ_info, path_out):
+        '''
+        Plotar três imagens lado a lado
+        '''
+        # Plotar círculo verde
+        xc = circ_info[0]
+        yc = circ_info[1]
+        rc = circ_info[2]
+        cv2.circle(img1, (xc, yc), rc, (0, 255, 0), 2)
+        # Converter BGR para RGB
+        img1 = cv2.cvtColor(img1, cv2.COLOR_BGR2RGB)
+        
+        # Cria uma figura com duas sub-figuras lado a lado
+        fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 5))
+        # Plota a primeira imagem na primeira sub-figura
+        ax1.imshow(img1)
+        ax1.axis('off')  # Desliga os eixos
+        ax1.set_title('Imagem RGB + Limite ângulo zenital')
+        # Plota a segunda imagem na segunda sub-figura
+        ax2.imshow(mask, cmap='gray')
+        ax2.axis('off')  # Desliga os eixos
+        ax2.set_title('Máscara')
+        # Plota a terceira imagem na segunda sub-figura
+        ax3.imshow(img2, cmap='gray')
+        ax3.axis('off')  # Desliga os eixos
+        ax3.set_title('Máscara + Imagem segmentada')
+
+        # Adiciona o título geral à figura
+        plt.suptitle(f'{n_gray} - {cf_asi}%', fontsize=16)
+        # Ajusta o layout para garantir que nada seja cortado
+        plt.tight_layout()
+        plt.savefig(f'{path_out}/{date_str}_cf.png')
+        plt.close(fig)
