@@ -16,9 +16,9 @@ Como etapa de controle de qualidade, foi adotado um critério para descartar ima
 
 As imagens ASI são inicialmente representadas no espaço de cor RGB, em que cada pixel é composto pelos canais vermelho (R), verde (G) e azul (B). A partir desses valores, calcula-se o índice espectral Normalized Blue-Red Ratio (NBRR), definido como:
 
-\[
+$$
 NBRR = \frac{B - R}{B + R}
-\]
+$$
 
 Esse índice explora o contraste espectral entre céu claro (tipicamente mais azulado) e nuvens (mais próximas do branco, com menor diferença entre azul e vermelho), permitindo uma segmentação eficiente. A imagem segmentada final classifica os pixels em três categorias: céu claro (valores altos), nuvem (valores intermediários) e interferência (valores baixos), representados respectivamente por branco (255), cinza (127) e preto (0). Por fim, a fração de cobertura de nuvens é estimada pela razão entre o número total de pixels classificados como nuvem e a área útil da imagem, desconsiderando os pixels afetados por interferências.
 
